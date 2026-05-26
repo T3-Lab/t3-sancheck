@@ -1,6 +1,7 @@
 from . import _helper as Help
 from . import _configs as Config
-from . import core
+from . import _core
+from . import _reports as Reports
 
 import pandas as pd
 import numpy as np
@@ -9,7 +10,6 @@ from scipy import stats
 
 from scipy.stats import skew, kurtosis
 from statsmodels.stats.outliers_influence import variance_inflation_factor
-from sklearn.preprocessing import LabelEncoder
 from sklearn.feature_selection import f_classif, f_regression, mutual_info_classif, mutual_info_regression
 
 import warnings
@@ -17,7 +17,7 @@ import warnings
 # =============================
 # Distribution analysis
 # =============================
-def normalized_entropy(series: pd.Series, eps: float, bins):
+def normalized_entropy(series: pd.Series, eps: float, is_cat: bool, bins):
     vals = pd.to_numeric(series, errors="coerce").replace([np.inf, -np.inf], np.nan).dropna().to_numpy()
     if len(vals) < 2:
         return 0.0
@@ -26,14 +26,21 @@ def normalized_entropy(series: pd.Series, eps: float, bins):
         return 0.0
 
     try:
+        if is_cat:
+            probs = pd.Series(vals).value_counts(normalize=True).values
+            H = -(probs * np.log2(probs)).sum()
+            H_max = np.log2(len(probs)) if len(probs) > 1 else 1.0
+            return float(np.clip(H / max(H_max, eps), 0.0, 1.0))
+
         hist, edges = np.histogram(vals, bins=bins)
 
     except Exception as e:
-        core.EXCEPTIONS.store({
+        _core.EXCEPTIONS.store({
                 "type": type(e).__name__,
                 "message": str(e),
                 "where": "normalized_entropy computation",
             })
+
         hist, edges = np.histogram(vals, bins=min(10, max(2, int(np.sqrt(len(vals))))))
 
     total = hist.sum()
@@ -66,13 +73,15 @@ def normalized_spread_score(series: pd.Series, eps: float):
     return score, var, iqr
 
 
-def distribution_report(df: pd.DataFrame, 
-                        numeric_cols: list[str], 
-                        eps: float=Config.EPS, 
+def distribution_report(df: pd.DataFrame,
+                        cat_col: list[str],
+                        eps: float=Config.EPS,
                         bins=Config.ENTROPY_BINS):
     rows = []
-    for c in numeric_cols:
-        ent = normalized_entropy(df[c], eps, bins)
+    cat_col = np.asarray(cat_col)
+    for c in df.columns:
+        is_cat = np.any(c == cat_col)
+        ent = normalized_entropy(df[c], eps, is_cat, bins)
         spread_score, raw_var, iqr = normalized_spread_score(df[c], eps)
         rows.append({
             "column": c,
@@ -85,11 +94,8 @@ def distribution_report(df: pd.DataFrame,
         })
     return pd.DataFrame(rows)
 
-def class_override_ratio(df: pd.DataFrame, numeric_cols: list[str], target: str):
-    cols = list(set(numeric_cols + [target]))
-    sub = df[cols].dropna()
-
-    grouped = sub.groupby(numeric_cols)[target].nunique()
+def class_override_ratio(df: pd.DataFrame, no_target_idx: list[str], target: str):
+    grouped = df.groupby(no_target_idx)[target].nunique()
 
     conflict = (grouped > 1).sum()
     total = len(grouped)
@@ -99,13 +105,13 @@ def class_override_ratio(df: pd.DataFrame, numeric_cols: list[str], target: str)
 
     return conflict / total
 
-def class_imbalance_ratio(df: pd.DataFrame, target: str):
-    unique_classes = df[target].dropna().unique()
+def class_imbalance_ratio(target: pd.Series):
+    unique_classes = target.dropna().unique()
     if len(unique_classes) <= 1:
         return 0.0
     
     if len(unique_classes) > 50:
-        core.WARNINGS.store({
+        _core.WARNINGS.store({
             "type": "UserWarning",
             "message": f"Too many unique classes in target ({len(unique_classes)}), imbalance ratio may be less meaningful.",
             "where": "class_imbalance_ratio computation"
@@ -123,13 +129,9 @@ def class_imbalance_ratio(df: pd.DataFrame, target: str):
             print("Invalid input, skipping imbalance ratio calculation.")
             return 0.0
 
-    y = df[target].dropna().to_numpy()
-    le = LabelEncoder()
-    y = le.fit_transform(y)
-
-    max_label = y.max() if len(y) > 0 else 0
-    counts = np.bincount(y, minlength=max_label + 1)
-    probs = counts / len(y)
+    max_label = target.max() if len(target) > 0 else 0
+    counts = np.bincount(target, minlength=max_label + 1)
+    probs = counts / len(target)
     gini = 1.0 - np.sum(probs ** 2)
     balance_rat = gini / (1 - 1 / len(unique_classes))
     
@@ -138,9 +140,9 @@ def class_imbalance_ratio(df: pd.DataFrame, target: str):
 # =============================
 # Column problems
 # =============================
-def nan_inf_column_report(df: pd.DataFrame, numeric_cols: list[str]):
+def nan_inf_column_report(df: pd.DataFrame):
     rows = []
-    for c in numeric_cols:
+    for c in df.columns:
         s = df[c]
         coerced, finite_mask, nan_mask, bad_parse_mask = Help._to_numeric_with_mask(s)
 
@@ -166,16 +168,16 @@ def nan_inf_column_report(df: pd.DataFrame, numeric_cols: list[str]):
     return pd.DataFrame(rows)
 
 
-def inconsistent_type_report(df: pd.DataFrame, 
-                             numeric_cols: list[str], 
+def inconsistent_type_report(df: pd.DataFrame,
                              thresh: float=0.05):
     rows = []
-    for c in numeric_cols:
+    for c in df.columns:
         s = df[c]
         coerced = pd.to_numeric(s, errors="coerce")
         bad = coerced.isna() & s.notna()
         ratio = float(bad.mean())
         rows.append({
+            "total": len(s),
             "column": c,
             "bad_type_total": int(bad.sum()),
             "bad_type_ratio": ratio,
@@ -184,30 +186,22 @@ def inconsistent_type_report(df: pd.DataFrame,
     return pd.DataFrame(rows)
 
 
-def abnormal_similarity_report(df: pd.DataFrame, 
-                               numeric_cols: list[str], 
+def abnormal_similarity_report(df: pd.DataFrame,
                                threshold: float=Config.DEFAULT_SIM_THRESHOLD):
-    if len(numeric_cols) < 2:
+    if len(df.columns) < 2:
         return pd.DataFrame(), [], 0.0
 
-    numeric = df[numeric_cols].apply(pd.to_numeric, errors="coerce")
-    corr = numeric.corr().abs()
-
-    pairs = []
-    flagged_cols = set()
-    over_threshold_scores = []
-
+    corr = df.corr().abs()
     mask = np.triu(np.ones_like(corr, dtype=bool), k=1)
     pairs_df = corr.where(mask).stack().reset_index()
     pairs_df.columns = ["col_a", "col_b", "abs_corr"]
-    pairs = pairs_df[pairs_df["abs_corr"] >= threshold][["col_a", "col_b", "abs_corr"]].values.tolist()
-    flagged_cols = set(pairs_df[pairs_df["abs_corr"] >= threshold][["col_a", "col_b"]].values.ravel())
-    over_threshold_scores = pairs_df[pairs_df["abs_corr"] >= threshold]["abs_corr"].tolist()
 
-    total_pairs = len(pairs)
-    issue_pairs = sum(1 for _, _, v in pairs if v >= threshold)
+    filtered = pairs_df[pairs_df["abs_corr"] >= threshold]
+    pairs = filtered[["col_a", "col_b", "abs_corr"]].values.tolist()
+    flagged_cols = set(filtered[["col_a", "col_b"]].values.ravel())
+    over_threshold_scores = filtered["abs_corr"].tolist()
 
-    pair_ratio = issue_pairs / max(total_pairs, 1)
+    pair_ratio = 1.0 if pairs else 0.0
     excess_mean = float(np.mean(over_threshold_scores)) if over_threshold_scores else 0.0
 
     severity = float(np.clip(0.6 * pair_ratio + 0.4 * excess_mean, 0.0, 1.0))
@@ -219,17 +213,17 @@ def abnormal_similarity_report(df: pd.DataFrame,
 # =============================
 # Row problems
 # =============================
-def problematic_row_report(df: pd.DataFrame, numeric_cols: list[str], eps: float=Config.EPS):
-    if not numeric_cols:
+def problematic_row_report(df: pd.DataFrame,
+                           eps: float=Config.EPS):
+    if not df.shape[1]:
         return pd.DataFrame(), pd.Series(dtype=float), 0.0
 
-    numeric = df[numeric_cols].apply(pd.to_numeric, errors="coerce")
-    invalid_mask = ~np.isfinite(numeric.to_numpy(dtype="float64", copy=False))
+    invalid_mask = ~np.isfinite(df.to_numpy(dtype="float64", copy=False))
     invalid_row_mask = invalid_mask.any(axis=1)
 
     col_scores = []
-    for c in numeric_cols:
-        vals = numeric[c]
+    for c in df.columns:
+        vals = df[c]
         med = vals.median(skipna=True)
         mad = np.median(np.abs(vals.dropna() - med)) if vals.notna().any() else 0.0
         robust_z = (vals - med).abs() / (mad + eps)
@@ -257,34 +251,39 @@ def problematic_row_report(df: pd.DataFrame, numeric_cols: list[str], eps: float
 # =============================
 # Relation and sparsity
 # =============================
-def compute_vif(df: pd.DataFrame, numeric_cols: list[str]):
-    df = df[numeric_cols].apply(pd.to_numeric, errors="coerce").dropna()
+def compute_vif(df: pd.DataFrame):
     if df.shape[1] < 2:
-        return 0.0
+        return {
+            "mean": 0.0,
+            "per_feature": dict(zip(df.columns, np.zeros_like(df.columns, dtype=float)))
+        }
     
     vif_scores = []
+    arr = df.dropna().to_numpy(dtype=float)
     with warnings.catch_warnings(record=True) as w:
         warnings.simplefilter("always")
         
-        try:
-            for i in range(df.shape[1]):
-                vif = variance_inflation_factor(df.values, i)
+        for i in range(df.shape[1]):
+            try:
+                vif = variance_inflation_factor(arr, i)
+                vif = pd.to_numeric(vif, errors="coerce")
+            except Exception as e:
+                vif_scores.append(float('inf'))
+                _core.EXCEPTIONS.store({
+                "type": type(e).__name__,
+                "message": str(e),
+                "where": "compute_vif computation",
+                })
+                continue
 
-                if np.isinf(vif) or np.isnan(vif):
-                    vif_scores.append(float('inf'))
+            if np.isnan(vif) or np.isinf(vif):
+                vif_scores.append(float('inf'))
 
-                vif_scores.append(vif)
-        
-        except Exception as e:
-            core.EXCEPTIONS.store({
-            "type": type(e).__name__,
-            "message": str(e),
-            "where": "compute_vif computation",
-        })
-            vif_scores.append(float('inf'))
+            else:
+                vif_scores.append(float(vif))
             
         for warn in w:
-            core.WARNINGS.store({
+            _core.WARNINGS.store({
             "type": warn.category.__name__,
             "message": str(warn.message),
             "where": "compute_vif computation",
@@ -295,66 +294,51 @@ def compute_vif(df: pd.DataFrame, numeric_cols: list[str]):
 
     return {
     "mean": norm_vif,
-    "per_feature": dict(zip(numeric_cols, vif_scores))
+    "per_feature": dict(zip(df.columns, vif_scores))
     }
 
-def linear_signal(df: pd.DataFrame, 
-                  numeric_cols: list[str], 
+def relation_signal(df: pd.DataFrame,
                   target: str, 
-                  task: str, 
-                  eps: float=Config.EPS) -> float:
-    cols = list(set(numeric_cols + [target]))
-    df = df[cols].dropna()
+                  task: str) -> float:
     if df.shape[0] < 2:
         return 0.0
 
-    X = df[numeric_cols].apply(pd.to_numeric, errors="coerce").to_numpy()
-    y = df[target].to_numpy()
-    
+    y = df[target]
+    df = df.dropna().drop(target, axis=1)
+
     with warnings.catch_warnings(record=True) as w:
         warnings.simplefilter("always")
         try:
             if task == "classification":
-                f_scores, _ = f_classif(X, y)
-                mean_f_score = np.mean(f_scores)
-                score = np.tanh(mean_f_score / 10)
+                f_scores, _ = f_classif(df, y)
+ 
+                mi = mutual_info_classif(df, y, discrete_features='auto')
 
-                mi = mutual_info_classif(X, y, discrete_features='auto')
-                dependency = np.mean(mi)
-
-                final_score = score / (dependency + eps)
-
-                return float(np.clip(final_score, 0.0, 1.0))
+                return pd.DataFrame(columns=["feature", "f", "mi"], data=list(zip(df.columns, f_scores, mi)))
 
             elif task == "regression":
-                f_scores, _ = f_regression(X, y)
-                mean_f_score = np.mean(f_scores)
-                score = np.tanh(mean_f_score / 10)
+                f_scores, _ = f_regression(df, y)
 
-                mi = mutual_info_regression(X, y, discrete_features='auto')
-                dependency = np.mean(mi)
+                mi = mutual_info_regression(df, y, discrete_features='auto')
 
-                final_score = score / (dependency + eps)
-
-                return float(np.clip(final_score, 0.0, 1.0))
-
+                return pd.DataFrame(columns=["feature", "f", "mi"], data=list(zip(df.columns, f_scores, mi)))
+            
         except Exception as e:
-            core.EXCEPTIONS.store({
+            _core.EXCEPTIONS.store({
                 "type": type(e).__name__,
                 "message": str(e),
-                "where": "linear_signal computation",
+                "where": "relation_signal computation",
             })
 
         for warn in w:
-            core.WARNINGS.store({
+            _core.WARNINGS.store({
                 "type": warn.category.__name__,
                 "message": str(warn.message),
-                "where": "linear_signal computation",
+                "where": "relation_signal computation",
             })
-    return 0.0
+    return pd.DataFrame(columns=["feature", "f", "mi"], data=list(zip(df.columns, np.zeros(len(df.columns)), np.zeros(len(df.columns)))))
 
-def sparsity_ratio(df: pd.DataFrame, numeric_cols: list[str]):
-    df = df[numeric_cols].apply(pd.to_numeric, errors="coerce")
+def sparsity_ratio(df: pd.DataFrame):
     n_samples, n_features = df.shape
 
     zero_ratio = np.sum(df == 0) / df.size
@@ -387,14 +371,14 @@ def shapiro_per_feature(series: pd.Series):
             return float(p)
         
         except Exception as e:
-            core.EXCEPTIONS.store({
+            _core.EXCEPTIONS.store({
                 "type": type(e).__name__,
                 "message": str(e),
                 "where": "shapiro_per_feature computation",
             })
 
         for warn in w:
-            core.WARNINGS.store({
+            _core.WARNINGS.store({
                 "type": warn.category.__name__,
                 "message": str(warn.message),
                 "where": "shapiro_per_feature computation",
@@ -420,14 +404,14 @@ def ks_per_feature(series: pd.Series, eps: float=Config.EPS):
             return float(p)
 
         except Exception as e:
-            core.EXCEPTIONS.store({
+            _core.EXCEPTIONS.store({
                 "type": type(e).__name__,
                 "message": str(e),
                 "where": "ks_per_feature computation",
             })
 
         for warn in w:
-            core.WARNINGS.store({
+            _core.WARNINGS.store({
                 "type": warn.category.__name__,
                 "message": str(warn.message),
                 "where": "ks_per_feature computation",
@@ -435,8 +419,7 @@ def ks_per_feature(series: pd.Series, eps: float=Config.EPS):
 
     return 0.0
 
-def compute_normality(df: pd.DataFrame, numeric_cols: list[str]):
-    df = df[numeric_cols].apply(pd.to_numeric, errors="coerce")
+def structure_distribution(df: pd.DataFrame):
     if df.shape[1] == 0:
         return 0.5
 
@@ -448,13 +431,40 @@ def compute_normality(df: pd.DataFrame, numeric_cols: list[str]):
             skew_vals.append(abs(skew(df[col].dropna())))
             kurt_vals.append(abs(kurtosis(df[col].dropna())))
 
+    dist_score = [1 - (0.5 * np.tanh(s / 2) + 0.5 * np.tanh(k)) for s, k in zip(skew_vals, kurt_vals)]
+
     skew_mean = np.mean(skew_vals) if skew_vals else 0.0
     kurt_mean = np.mean(kurt_vals) if kurt_vals else 0.0
 
-    # Normalize (heuristic scaling)
     skew_score = np.tanh(skew_mean / 2)
     kurt_score = np.tanh(kurt_mean / 5)
 
-    normality = 1 - (0.5 * skew_score + 0.5 * kurt_score)
+    overall_dist = 1 - (0.5 * skew_score + 0.5 * kurt_score)
 
-    return float(np.clip(normality, 0.0, 1.0))
+    return pd.DataFrame({"column": df.columns, "skew": skew_vals, "kurt": kurt_vals, "dist_score": dist_score}), np.clip(overall_dist, 0.0, 1.0)
+
+# =============================
+# Cleanliness
+# =============================
+def cleanliness_breakdown(
+    nan_inf_df: pd.DataFrame,
+    type_df: pd.DataFrame,
+    sim_severity: float,
+    row_severity: float,
+) -> Reports.CleanlinessBreakdown:
+    if len(nan_inf_df) == 0:
+        missing_severity = 0.0
+    else:
+        missing_severity = float(np.clip(nan_inf_df["invalid_ratio"].mean(), 0.0, 1.0))
+
+    if len(type_df) == 0:
+        type_severity = 0.0
+    else:
+        type_severity = float(np.clip(type_df["bad_type_ratio"].mean(), 0.0, 1.0))
+
+    return Reports.CleanlinessBreakdown(
+        missing_severity=missing_severity,
+        type_severity=type_severity,
+        similarity_severity=float(np.clip(sim_severity, 0.0, 1.0)),
+        row_severity=float(np.clip(row_severity, 0.0, 1.0)),
+    )

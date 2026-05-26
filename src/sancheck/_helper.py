@@ -88,12 +88,54 @@ def _label_from_score(score: float, ascending=False, no_color=False) -> str:
             return "low"
         return "very low"
 
-def _infer_task(target: pd.Series) -> str:
-    s = np.asarray(target.dropna())
-    if np.issubdtype(s.dtype, np.floating) or np.issubdtype(s.dtype, np.complexfloating):
-        return "regression"
+class ActionOptions:
+    def __init__(self):
+        pass
+
+    def col_act(self, score: float, id: str | int) -> str:
+        if score >= Config.DEFAULT_SIM_THRESHOLD:
+            return f"High anomaly detected in column {id}. Check for any potential outlier or data quality issue in the column and consider to drop out the column."
+        
+        if score >= 0.75:
+            return f"Moderate anomaly detected in column {id}. Check for any potential outlier or data quality issue in the column."
+
+        return None
     
-    return "classification"
+    def row_act(self, score: float, id: str | int) -> str:
+        if score >= Config.DEFAULT_SIM_THRESHOLD:
+            return f"High anomaly detected in row {id}. Check for any potential outlier or data quality issue in the row and consider to drop out the row."
+        
+        if score >= 0.75:
+            return f"Moderate anomaly detected in row {id}. Check for any potential outlier or data quality issue in the row."
+
+        return None
+
+    def corr_act(self, score: float, pair: str) -> str:
+        if score >= Config.DEFAULT_SIM_THRESHOLD:
+            return f"High relation between {pair}. Do deeper check for the relation between those features and consider to drop out one of them or using PCA."
+        
+        if score >= 0.75:
+            return f"Fairly high relation between {pair}. Do deeper check for the relation between those features."
+        
+        return None
+    
+    def vif_act(self, score: float, col: str) -> str:
+        if score >= 10:
+            return f"High multicollinearity detected in column {col}. Do deeper check for the relation between those features and consider to drop out one of them or using PCA."
+        
+        if score >= 5:
+            return f"Fairly high multicollinearity detected in column {col}. Do deeper check for the relation between those features."
+
+        return None
+
+    def struc_norm(self, score: float, col: str) -> str:
+        if score <= 0.25:
+            return f"High skewness in column {col}. Do deeper check for dataset skewness and kurtosis and consider transformation using log-transformation or box-cox if the data has no negative value, or Yeo-Johnson, etc."
+
+        if score <= 0.50:
+            return f"Moderate skewness in column {col}. Do deeper check for dataset skewness and kurtosis."
+
+        return None
 
 class InfoAction(argparse.Action):
     def __init__(self, option_strings, dest, nargs=0, **kwargs):
@@ -108,6 +150,10 @@ class ReportEncoder(json.JSONEncoder):
     def default(self, obj):
         if isinstance(obj, pd.DataFrame):
             return obj.to_dict(orient="records")
+        
+        if isinstance(obj, pd.Series):
+            return obj.to_dict()
+        
         return super().default(obj)
 
 class Container:

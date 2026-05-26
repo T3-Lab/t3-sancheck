@@ -1,5 +1,9 @@
 [![PyPI version](https://badge.fury.io/py/sancheck.svg)](https://pypi.org/project/sancheck/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/sancheck/blob/main/LICENSE)
+![JSON Output](https://img.shields.io/badge/output-JSON-orange)
+![Statistical Diagnostics](https://img.shields.io/badge/focus-statistics-purple)
+![CLI Tool](https://img.shields.io/badge/interface-CLI-black)
+![Docs](https://img.shields.io/badge/docs-available-blue)
 
 # sancheck
 
@@ -9,7 +13,7 @@ It provides a fast, high-level overview before deeper analysis or modeling.
 ## When should I use it?
 - Before exploratory data analysis (EDA)
 - Before training statistical or machine learning models
-- When you want a quick sanity check without manual inspection
+- When you want a quick sanity check without manual inspection 
 
 ## What it does NOT do
 - It does not clean or modify data
@@ -20,122 +24,142 @@ It provides a fast, high-level overview before deeper analysis or modeling.
 Run the tool on a CSV file:
 
 ```bash
-sancheck [csv_path] [target_col_name]
+sancheck [csv_path]
 ```
 
-## Example output with assets/data_example.csv
+## Example output with tests/fixtures/noisy.csv
 
 ### 💬 Terminal output
 
 ```bash
-📊 Dataset Summary
-- Valid numeric columns: 5
-- Ignored non-numeric columns: 2
-- Inferred task type: classification
+Done! 
+⚠️  Without task and target specification some metrics are disabled 
 
-📌 Column problems
-- Column with NaN/Inf/invalid: 0
-  - math_score: invalid=0/10 (0.000)
-  - science_score: invalid=0/10 (0.000)
-  - english_score: invalid=0/10 (0.000)
-  - total_score: invalid=0/10 (0.000)
-  - age: invalid=0/10 (0.000)
-- Type inconsistency column: 0
-  - math_score: bad_type=0 (0.000)
-  - science_score: bad_type=0 (0.000)
-  - english_score: bad_type=0 (0.000)
-  - total_score: bad_type=0 (0.000)
-  - age: bad_type=0 (0.000)
-- Similar feature pairs (|corr| >= 0.95):
-  - Severity similarity: 0.996
-  - math_score <-> total_score: |corr|=0.998
-  - english_score <-> total_score: |corr|=0.993
-  - science_score <-> total_score: |corr|=0.992
-  - math_score <-> english_score: |corr|=0.990
-  - math_score <-> science_score: |corr|=0.988
-  - science_score <-> english_score: |corr|=0.972
-  - Affected columns: english_score, math_score, science_score, total_score
-
-📌 Row problems
-- Problematic rows (NaN/Inf): 0/10
-- Severity row: 0.141
-  - row 2: score=0.667, invalid=False
-  - row 3: score=0.594, invalid=False
-  - row 5: score=0.580, invalid=False
-  - row 6: score=0.576, invalid=False
-  - row 7: score=0.555, invalid=False
-
-📌 Distribution and interpretation
-- High entropy means the distribution is more even/complex; it's not automatically 'noise', it can also be multimodal.
-- High spread score means the data is more dispersed robustly compared to its central tendency.
-
-  Top entropy (normalized 0-1):
-  - math_score: entropy=0.960 (very spread / more uniform or complex distribution)
-  - science_score: entropy=0.960 (very spread / more uniform or complex distribution)
-  - total_score: entropy=0.960 (very spread / more uniform or complex distribution)
-  - age: entropy=0.960 (very spread / more uniform or complex distribution)
-  - english_score: entropy=0.859 (very spread / more uniform or complex distribution)
-
-  Top spread (normalized 0-1):
-  - science_score: spread_score=0.562 (wide / large variation), var=0.006, iqr=0.092
-  - total_score: spread_score=0.538 (wide / large variation), var=0.057, iqr=0.298
-  - math_score: spread_score=0.528 (wide / large variation), var=0.007, iqr=0.108
-  - english_score: spread_score=0.508 (wide / large variation), var=0.006, iqr=0.103
-  - age: spread_score=0.503 (wide / large variation), var=2.222, iqr=2.000
-
-📌 Relation and structure
-- VIF mean (normalized): 1.000 (very high)
-- VIF per-feature
-  - math_score: VIF=inf
-  - science_score: VIF=inf
-  - english_score: VIF=inf
-  - total_score: VIF=inf
-  - age: VIF=inf
-- linear signal score: 1.000 (very high)
-- sparsity: 0.100 (low)
-- class imbalance ratio: 0.040 (low)
-- class override ratio: 0.000 (low)
-
-📌 Normality
-- Shapiro-wilk and KS test score per-feature:
-  - math_score: Shapiro=0.902 | KS=0.997
-  - science_score: Shapiro=0.903 | KS=0.970
-  - english_score: Shapiro=0.746 | KS=0.987
-  - total_score: Shapiro=0.912 | KS=0.975
-  - age: Shapiro=0.341 | KS=0.925
-- Structure normality (based on skewness and kurtosis): 0.838 (very high)
-
-🧼 Cleanineess status
-- cleanliness score: 0.759 / 1.000
-- cleanliness label: fairly clean
-- missing severity: 0.000
-- type severity: 0.000
-- similarity severity: 0.996
-- row severity: 0.141
-
-📊 Dataset-level distribution summary
-- avg entropy: 0.940
-- avg spread score: 0.528
-
-⏱️ Elapsed time: 10.01 seconds
-
-❌ Exception(s) during process: []
-
-⚠️ Warning(s) during process: [{'type': 'RuntimeWarning', 'message': 'divide by zero encountered in scalar divide', 'where': 'compute_vif computation'}, 
-{'type': 'RuntimeWarning', 'message': 'divide by zero encountered in scalar divide', 'where': 'compute_vif computation'}, {'type': 'RuntimeWarning', 'message':
-'divide by zero encountered in scalar divide', 'where': 'compute_vif computation'}, {'type': 'RuntimeWarning', 'message': 'divide by zero encountered in scalar
-divide', 'where': 'compute_vif computation'}]
+            Dataset Summary            
+╭─────────────────────────────┬───────╮
+│ Info                        │ Value │
+├─────────────────────────────┼───────┤
+│ Valid numeric columns       │     2 │
+│ Ignored non-numeric columns │     3 │
+╰─────────────────────────────┴───────╯
+╭────────────────────── Column Report ──────────────────────╮
+│                      Invalid Values                       │
+│ ╭────────────────────┬────────┬─────────────────────────╮ │
+│ │ Issue              │ Column │ Details                 │ │
+│ ├────────────────────┼────────┼─────────────────────────┤ │
+│ │ NaN/Inf            │ absent │ invalid  = 0/10 (0.000) │ │
+│ │ NaN/Inf            │ salary │ invalid  = 0/10 (0.000) │ │
+│ │ Type inconsistency │ absent │ bad_type = 0/10 (0.000) │ │
+│ │ Type inconsistency │ salary │ bad_type = 0/10 (0.000) │ │
+│ ╰────────────────────┴────────┴─────────────────────────╯ │
+│ NaN/Inf columns: 0                                        │
+│ Type inconsistent columns: 0                              │
+│ Column Similarity                                         │
+│       Pairs                                               │
+│ ╭──────┬────────╮                                         │
+│ │ Pair │ |corr| │                                         │
+│ ├──────┼────────┤                                         │
+│ │ -    │      - │                                         │
+│ ╰──────┴────────╯                                         │
+│ Affected columns: -                                       │
+│ Severity: 0.000                                           │
+╰───────────────────────────────────────────────────────────╯
+╭────────────── Row report ───────────────╮
+│          Top 5 anomalous rows           │
+│ ╭───────────┬───────────────┬─────────╮ │
+│ │ Row index │ Anomaly score │ Invalid │ │
+│ ├───────────┼───────────────┼─────────┤ │
+│ │   row 5   │         0.916 │  False  │ │
+│ │   row 4   │         0.897 │  False  │ │
+│ │   row 9   │         0.865 │  False  │ │
+│ │   row 6   │         0.778 │  False  │ │
+│ │   row 3   │         0.448 │  False  │ │
+│ ╰───────────┴───────────────┴─────────╯ │
+│ Problematic rows: 0 / 10                │
+│ Row severity: 0.135 / 1.000             │
+╰─────────────────────────────────────────╯
+╭────────────────────────────── Distribution Report ──────────────────────────────╮
+│                                Top 2 Spread                                     │
+│ ╭────────┬───────────────┬────────────────────────┬────────────┬─────────╮      │
+│ │ Column │        Spread │         Label          │        Var │     IQR │      │
+│ ├────────┼───────────────┼────────────────────────┼────────────┼─────────┤      │
+│ │ absent │ 0.671 / 1.000 │ wide / large variation │      1.122 │   1.000 │      │
+│ │ salary │ 0.613 / 1.000 │ wide / large variation │ 387271.111 │ 667.500 │      │
+│ ╰────────┴───────────────┴────────────────────────┴────────────┴─────────╯      │
+│                                  Top 2 Entropy                                  │
+│ ╭────────┬───────────────┬────────────────────────────────────────────────────╮ │
+│ │ Column │       Entropy │                       Label                        │ │
+│ ├────────┼───────────────┼────────────────────────────────────────────────────┤ │
+│ │ absent │ 0.865 / 1.000 │ very spread / more uniform or complex distribution │ │
+│ │ salary │ 0.785 / 1.000 │ very spread / more uniform or complex distribution │ │
+│ ╰────────┴───────────────┴────────────────────────────────────────────────────╯ │
+│ Avg entropy: 0.825                                                              │
+│ Avg spread score: 0.642                                                         │
+╰─────────────────────────────────────────────────────────────────────────────────╯
+╭───────────────────── Normality Report ─────────────────────╮
+│    Distribution Normality                                  │
+│ ╭─────────┬─────────┬───────╮                              │
+│ │ Feature │ Shapiro │    KS │                              │
+│ ├─────────┼─────────┼───────┤                              │
+│ │ absent  │   0.002 │ 0.120 │                              │
+│ │ salary  │   0.071 │ 0.219 │                              │
+│ ╰─────────┴─────────┴───────╯                              │
+│                 Structure Distribution                     │
+│ ╭─────────┬──────────┬──────────┬────────────────────╮     │
+│ │ Feature │ Skewness │ Kurtosis │ Distribution score │     │
+│ ├─────────┼──────────┼──────────┼────────────────────┤     │
+│ │ absent  │    1.218 │    0.166 │              0.646 │     │
+│ │ salary  │    1.042 │    0.052 │              0.735 │     │
+│ ╰─────────┴──────────┴──────────┴────────────────────╯     │
+│ Overall structure distribution score: 0.733 / 1.000 (high) │
+╰────────────────────────────────────────────────────────────╯
+╭───── Structure & Relation Report ─────╮
+│               Structure               │
+│ ╭──────────┬────────────────────────╮ │
+│ │ Metric   │                  Value │ │
+│ ├──────────┼────────────────────────┤ │
+│ │ Sparsity │ 0.260 / 1.000 (medium) │ │
+│ ╰──────────┴────────────────────────╯ │
+│              Relation                 │
+│ ╭─────────┬───────┬────┬─────────╮    │
+│ │ Feature │   VIF │ MI │ F-score │    │
+│ ├─────────┼───────┼────┼─────────┤    │
+│ │ absent  │ 1.346 │  - │       - │    │
+│ │ salary  │ 1.346 │  - │       - │    │
+│ ╰─────────┴───────┴────┴─────────╯    │
+│ Avg VIF: 0.134 / 1.000 (low)          │
+╰───────────────────────────────────────╯
+                 Cleanliness Status                 
+╭─────────────────────┬────────────────────────────╮
+│ Metric              │ Value                      │
+├─────────────────────┼────────────────────────────┤
+│ Cleanliness score   │ 0.959 / 1.000 (very clean) │
+│ Missing severity    │ 0.000 / 1.000 (low)        │
+│ Type severity       │ 0.000 / 1.000 (low)        │
+│ Similarity severity │ 0.000 / 1.000 (low)        │
+│ Row severity        │ 0.135 / 1.000 (low)        │
+╰─────────────────────┴────────────────────────────╯
+                                               Actions Suggestion                                               
+╭──────┬───────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ Type │ Action                                                                                                │
+├──────┼───────────────────────────────────────────────────────────────────────────────────────────────────────┤
+│ Row  │ Moderate anomaly detected in row 5. Check for any potential outlier or data quality issue in the row. │
+│ Row  │ Moderate anomaly detected in row 4. Check for any potential outlier or data quality issue in the row. │
+│ Row  │ Moderate anomaly detected in row 9. Check for any potential outlier or data quality issue in the row. │
+│ Row  │ Moderate anomaly detected in row 6. Check for any potential outlier or data quality issue in the row. │
+╰──────┴───────────────────────────────────────────────────────────────────────────────────────────────────────╯
+⏱️ Elapsed time: 0.31 seconds
 ```
 
 ### 📊 Boxplot visualization
-![Boxplot Example](assets/boxplot_numeric_columns(all_features).png)
+![Boxplot Example](assets/noisy_data_plots/boxplot_numeric_columns(all_features).png)
 
 ### 🔥 Heatmap visualization
-![Heatmap Example](assets/heatmap_correlation(all_features).png)
+![Heatmap Example](assets/noisy_data_plots/heatmap_correlation(all_features).png)
 
 
 ## Interpretation tips
-- Higher clarity scores indicate cleaner numeric data
+- Higher cleanliness scores indicate cleaner numeric data
 
 - Anomalous rows are ranked, not classified — use them for inspection
 
@@ -143,4 +167,4 @@ divide', 'where': 'compute_vif computation'}]
 
 - This tool is best used as a fast pre-analysis step
 
-- Some metric may produce infinity values for some reason, such as VIF metric if pair of feature has a very high correlation score
+- Certain metrics such as VIF may produce infinite values under near-perfect multicollinearity.

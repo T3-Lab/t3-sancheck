@@ -1,0 +1,11 @@
+id,hours,absent,role,salary
+N01,168,0,"employee",1680
+N02,NaN,0,"employee",1650
+N03,153,0,"employee",1530
+N04,160,0,"manager",3200
+N05,120,2,"manager","2360"
+N06,129,1,"manager",2560
+N07,145,1,"employee",1440
+N08,153,0,"employee",1530
+N09,171,0,NaN,1710
+N10,inf,3,"employee",1180
