@@ -51,7 +51,7 @@ def metrics():
     struc_n_rel_tab.add_section()
 
     struc_n_rel_tab.add_row("Multicollinearity", 
-                            "Multicollinearity is calculated using the VIF (Variance Inflation Factor). The calculated mean is presented normalized using '1 - tanh(VIF / 10). Another form of presentation is the top 5 highest of all features.")
+                            "Multicollinearity is calculated using the VIF (Variance Inflation Factor). The calculated mean is presented normalized using 'tanh(mean_VIF / 10)'. Another form of presentation is the top 5 highest of all features.")
 
     info_report = Group(
         cleanliness_tab,

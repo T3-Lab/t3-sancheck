@@ -41,7 +41,7 @@ def analyze(df: pd.DataFrame,
 
     struc_dist_df, overall_dist = Check.structure_distribution(non_cat_df)
     row_df, row_scores, row_severity = Check.problematic_row_report(df)
-    dist_df = Check.distribution_report(df, categorical_cols)
+    dist_df = Check.distribution_breakdown(df, categorical_cols)
     cleanliness = Check.cleanliness_breakdown(nan_inf_df, type_df, sim_severity, row_severity)
     sparsity = Check.sparsity_ratio(df)
     vif = Check.compute_vif(df)
@@ -66,7 +66,7 @@ def analyze(df: pd.DataFrame,
                 "severity": row_severity,
                 "scores": row_scores,
             },
-            "distribution_report": dist_df,
+            "distribution_report": dist_df.reset_index(),
             "cleanliness_breakdown": cleanliness,
             "sparsity_ratio": sparsity,
             "vif": vif,
@@ -101,7 +101,7 @@ def analyze(df: pd.DataFrame,
                 "severity": row_severity,
                 "scores": row_scores.to_dict(),
             },
-            "distribution_report": dist_df.to_dict(orient="records"),
+            "distribution_report": dist_df,
             "cleanliness_breakdown": {
                 "overall": cleanliness.overall,
                 "label": Help._label_from_score(cleanliness.overall, no_color=True),

@@ -19,7 +19,6 @@ from rich.console import Console, Group
 from rich.table import Table
 from rich.panel import Panel
 
-
 def main():
     console = Console()
     elapsed = time.time()
@@ -298,21 +297,21 @@ def main():
         console.print(Panel(row_report, title="[bold]Row report[/]", expand=False))
 
         # Distribution: top entropy and top spread
-        entropy_table = Table(title=f"Top {"5" if len(numeric_cols) >= 5 else str(len(numeric_cols))} Entropy", box=box.ROUNDED, header_style="yellow")
+        entropy_table = Table(title=f"Top {"5" if len(top_entropy) >= 5 else str(len(top_entropy))} Entropy", box=box.ROUNDED, header_style="yellow")
         entropy_table.add_column("Column", style="blue", justify="left")
         entropy_table.add_column("Entropy", justify="right")
         entropy_table.add_column("Label", justify='center')
         for _, r in top_entropy.iterrows():
-            entropy_table.add_row(str(r["column"]), f"{r['entropy']:.3f} / 1.000", r.get("entropy_label", "-"))
+            entropy_table.add_row(str(r["index"]), f"{r['entropy']:.3f} / 1.000", r.get("entropy_label", "-"))
 
-        spread_table = Table(title=f"Top {"5" if len(numeric_cols) >= 5 else str(len(numeric_cols))} Spread", box=box.ROUNDED, header_style="yellow")
+        spread_table = Table(title=f"Top {"5" if len(top_spread) >= 5 else str(len(top_spread))} Spread", box=box.ROUNDED, header_style="yellow")
         spread_table.add_column("Column", style="blue", justify="left")
         spread_table.add_column("Spread", justify="right")
         spread_table.add_column("Label", justify="center")
         spread_table.add_column("Var", justify="right")
         spread_table.add_column("IQR", justify="right")
         for _, r in top_spread.iterrows():
-            spread_table.add_row(str(r["column"]), f"{r['spread_score']:.3f} / 1.000", r.get("spread_label", "-"), f"{r['variance']:.3f}", f"{r['iqr']:.3f}")
+            spread_table.add_row(str(r["index"]), f"{r['spread_score']:.3f} / 1.000", r.get("spread_label", "-"), f"{r['variance']:.3f}", f"{r['iqr']:.3f}")
 
         distribution_report = Group(
             spread_table,

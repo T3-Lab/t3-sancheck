@@ -1,5 +1,11 @@
+from . import _helper as Help
+from . import _configs as Config
+from . import _check_func as Check
+
 from dataclasses import dataclass
+
 import numpy as np
+import pandas as pd
 
 @dataclass
 class CleanlinessBreakdown:
@@ -34,3 +40,25 @@ class CleanlinessBreakdown:
         if score >= 0.50:
             return "[orange1]some issues[/orange1]"
         return "[red]dirty[/red]"
+
+@dataclass
+class DistributionReport:
+    series: pd.Series
+    is_cat: bool
+    eps: float=Config.EPS
+    bins=Config.ENTROPY_BINS
+
+    @property
+    def dist(self) -> dict:
+        ent = Check.normalized_entropy(self.series, self.eps, self.is_cat, self.bins)
+        spread_score, raw_var, iqr = Check.normalized_spread_score(self.series, self.eps)
+        report = {
+            "entropy": ent,
+            "entropy_label": Help.entropy_interpretation(ent),
+            "spread_score": spread_score,
+            "spread_label": Help.spread_interpretation(spread_score),
+            "variance": raw_var,
+            "iqr": iqr,
+        }
+
+        return report

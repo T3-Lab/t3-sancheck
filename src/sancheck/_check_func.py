@@ -3,6 +3,7 @@ from . import _configs as Config
 from . import _core
 from . import _reports as Reports
 
+from rich.console import Console
 import pandas as pd
 import numpy as np
 import math
@@ -303,8 +304,9 @@ def relation_signal(df: pd.DataFrame,
     if df.shape[0] < 2:
         return 0.0
 
+    df = df.dropna()
     y = df[target]
-    df = df.dropna().drop(target, axis=1)
+    df = df.drop(target, axis=1)
 
     with warnings.catch_warnings(record=True) as w:
         warnings.simplefilter("always")
@@ -431,7 +433,7 @@ def structure_distribution(df: pd.DataFrame):
             skew_vals.append(abs(skew(df[col].dropna())))
             kurt_vals.append(abs(kurtosis(df[col].dropna())))
 
-    dist_score = [1 - (0.5 * np.tanh(s / 2) + 0.5 * np.tanh(k)) for s, k in zip(skew_vals, kurt_vals)]
+    dist_score = [1 - (0.5 * np.tanh(s / 2) + 0.5 * np.tanh(k / 5)) for s, k in zip(skew_vals, kurt_vals)]
 
     skew_mean = np.mean(skew_vals) if skew_vals else 0.0
     kurt_mean = np.mean(kurt_vals) if kurt_vals else 0.0
@@ -444,7 +446,7 @@ def structure_distribution(df: pd.DataFrame):
     return pd.DataFrame({"column": df.columns, "skew": skew_vals, "kurt": kurt_vals, "dist_score": dist_score}), np.clip(overall_dist, 0.0, 1.0)
 
 # =============================
-# Cleanliness
+# Reports
 # =============================
 def cleanliness_breakdown(
     nan_inf_df: pd.DataFrame,
@@ -468,3 +470,14 @@ def cleanliness_breakdown(
         similarity_severity=float(np.clip(sim_severity, 0.0, 1.0)),
         row_severity=float(np.clip(row_severity, 0.0, 1.0)),
     )
+
+def distribution_breakdown(
+        df: pd.DataFrame,
+        cat_col: list[str]
+) -> Reports.DistributionReport:
+    reports = {}
+    for c in df.columns:
+        is_cat = c in cat_col
+        reports[c] = Reports.DistributionReport(df[c], is_cat).dist
+
+    return pd.DataFrame.from_dict(reports, orient="index")
