@@ -5,10 +5,9 @@
 ![CLI Tool](https://img.shields.io/badge/interface-CLI-black)
 ![Docs](https://img.shields.io/badge/docs-available-blue)
 
-# sancheck
+# SanCheck — Sanity Check
 
-`sancheck` is a minimal-tuning CLI tool for quickly assessing the statistical overview of CSV datasets.  
-It provides a fast, high-level overview before deeper analysis or modeling.
+SanCheck is a minimal-tuning CLI tool for quickly assessing the statistical overview of CSV datasets. It provides a fast, high-level overview before deeper analysis or modeling.
 
 ## When should I use it?
 - Before exploratory data analysis (EDA)

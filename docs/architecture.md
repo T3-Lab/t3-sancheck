@@ -1,13 +1,7 @@
 # Architecture
 
 ## Project Philosophy
-SanCheck is a tool that supports heuristic dataset analysis with optimized performance, providing easy-to-understand statistical analysis report interpretation.
-
-### Why SanCheck prioritizes interpretability
-Because SanCheck's goal is to facilitate rapid data inspection through heuristic and some normalized metrics.
-
-### Why doesn't it replace EDA?
-Because SanCheck's role is limited to performing brief checks or providing an overview of the statistical condition of the data without cleaning or making a final diagnosis.
+Tool that supports heuristic dataset analysis with optimized performance, providing easy-to-understand statistical analysis report interpretation.
 
 ## Analysis Pipeline
 Numerical data is processed through a series of modular functions that generate analysis reports for each problem type. For illustration:
@@ -73,7 +67,13 @@ A Module containing a package of analysis report structures.
 ### _configs.py
 Contains configuration settings for statistical calculations such as threshold, epsilon, and others.
 
-## Design Decisions
+## Final Design Decisions
+
+### Why SanCheck prioritizes interpretability
+Because SanCheck's goal is to facilitate rapid data inspection through heuristic and some normalized metrics.
+
+### Why doesn't it replace EDA?
+Because SanCheck's role is limited to performing brief checks or providing an overview of the statistical condition of the data without cleaning or making a final diagnosis.
 
 ### Why CLI instead of GUI
 One reason is the inadequate skills of the stack maintainer, but a SanCheck demo in GUI format on Streamlit will be available soon at an unspecified time.
@@ -83,20 +83,3 @@ SanCheck was originally created because the process of checking light statistics
 
 ### Why there's no automatic cleaning
 SanCheck, as its name suggests, "Sanity `Check`", only checks data characteristics using statistical metrics. If SanCheck were to perform data cleaning, it would violate its purpose as a checking tool.
-
-## Known Tradeoffs
-
-### Analysis Depth
-SanCheck performs lightweight data analysis, which is useful when users want a quick analysis of their dataset. However, this also prevents the analysis from directly drawing conclusions about the data's characteristics. The metrics in the report do not comprehensively describe the data's characteristics, providing an overview of the data's condition.
-
-### Small Dataset Instability
-In small datasets, some metrics and analysis results can be unstable because certain thresholds, such as the threshold for valid numeric columns, are fixed.
-
-### Limited Contextual Understanding
-SanCheck is limited in the context of the metrics provided, potentially omitting some insights about the data.
-
-### Numerical stability
-Although SanCheck's numerical stability is maintained, it is possible for unusual values ​​to appear in reports, such as the common case of a VIF value of infinity, which can be caused by feature duplication or abnormal correlation between features.
-
-### Lack of automation
-SanCheck is designed not to assume anything from the user about the data, such as categorical feature detection; the --cat-encode argument indicates that SanCheck was originally designed not to automate data based on assumptions about the user's data. However, because of this, SanCheck can be difficult to use if a dataset contains many categorical columns, as the user must enter the column names one by one into the --cat-encode argument to ensure SanCheck truly recognizes the columns as categorical.

@@ -214,8 +214,7 @@ It can also be noted in the normality report that the overall dataset structure 
 SanCheck does not replace proper EDA, so it is recommended to continue the data engineering process with more in-depth checks.
 
 ## Next Steps
-- Read the interpretation guides: ![interpretaions/](./interpretations/)
-- Explore example datasets: ![examples/](./examples/)
-- Review CLI options: ![cli-reference.md](./cli-reference.md)
-- Understand known limitations: ![limitations.md](./limitations.md)
-- Learn about the internal architecture: ![architecture.md](./architecture.md)
+- Read the interpretation guides: [interpretaions/](./interpretations/)
+- Review CLI options: [cli-reference.md](./cli-reference.md)
+- Understand known limitations: [limitations.md](./limitations.md)
+- Learn about the internal architecture: [architecture.md](./architecture.md)
